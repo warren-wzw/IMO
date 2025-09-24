@@ -112,22 +112,28 @@ class ClassHead(nn.Module):
         for _ in range(n_blocks):
             layers.append(DepthwiseConvBlock(hidden_channels, hidden_channels))
         self.blocks = nn.Sequential(*layers)
-        # 加入注意力
+
+        # 注意力增强
         self.att = SEBlock(hidden_channels)
 
-        # 分类头 (MLP + Dropout)
-        self.pool = nn.AdaptiveAvgPool2d(1)  # 全局平均池化
+        # 分类头 (MLP + Dropout + BN)
+        self.pool = nn.AdaptiveAvgPool2d(1)
         self.mlp = nn.Sequential(
+            nn.Linear(hidden_channels, hidden_channels),
+            nn.BatchNorm1d(hidden_channels),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
             nn.Linear(hidden_channels, hidden_channels // 2),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
             nn.Linear(hidden_channels // 2, num_classes)
         )
+
     def forward(self, x):
-        x = self.blocks(x)          # [bs, hidden, H, W]
-        x = self.att(x)             # 注意力增强
-        x = self.pool(x).flatten(1) # [bs, hidden]
-        return self.mlp(x)          # [bs, num_classes]
+        x = self.blocks(x)
+        x = self.att(x)
+        x = self.pool(x).flatten(1)
+        return self.mlp(x)
 
 class CMFA(nn.Module):
     def __init__(self, channels=256, reduction=16):
@@ -163,13 +169,13 @@ class CMFA(nn.Module):
         fused = F.relu(self.fusion_conv(fused))
         return fused
     
-def append_prediction_to_csv(filename, pred_class, csv_path="Classification_Results.csv"):
-    """
-    边预测边写入CSV文件
-    :param filename: str, 图像文件名 (如 "0122.png")
-    :param pred_class: int, 预测类别 (0=non, 1=early, 2=mid_advanced)
-    :param csv_path: str, 保存路径
-    """
+def focal_loss(logits, targets, gamma=2.0, weight=None):
+    ce_loss = F.cross_entropy(logits, targets, weight=weight, reduction='none')
+    pt = torch.exp(-ce_loss)
+    loss = ((1 - pt) ** gamma * ce_loss).mean()
+    return loss
+
+def append_prediction_to_csv(filename, pred_class, csv_path="./out/Classification_Results.csv"):
     header = ["data", "non", "early", "mid_advanced"]
 
     # 如果文件不存在，先写入表头
@@ -191,7 +197,7 @@ def append_prediction_to_csv(filename, pred_class, csv_path="Classification_Resu
         writer.writerow([data_name] + row)
     
 @SEGMENTORS.register_module()
-class DiFusionSeg(EncoderDecoder):
+class IOMSG(EncoderDecoder):
     
     def __init__(self,
                  bit_scale=0.1,
@@ -204,7 +210,7 @@ class DiFusionSeg(EncoderDecoder):
                  diffusion='ddim',
                  accumulation=False,
                  **kwargs):
-        super(DiFusionSeg, self).__init__(**kwargs)
+        super(IOMSG, self).__init__(**kwargs)
 
         self.bit_scale = bit_scale
         self.timesteps = timesteps
@@ -216,6 +222,15 @@ class DiFusionSeg(EncoderDecoder):
         self.embedding_table = nn.Embedding(self.num_classes + 1, self.decode_head.in_channels[0])
         self.log_snr = alpha_cosine_log_snr
         self.transform = ConvModule(
+            self.decode_head.in_channels[0] * 2,
+            self.decode_head.in_channels[0],
+            1,
+            padding=0,
+            conv_cfg=None,
+            norm_cfg=None,
+            act_cfg=None
+        )
+        self.CMFA = ConvModule(
             self.decode_head.in_channels[0] * 2,
             self.decode_head.in_channels[0],
             1,
@@ -236,8 +251,7 @@ class DiFusionSeg(EncoderDecoder):
             nn.Linear(time_dim, time_dim)  # [2, 1024]
         )
         self.oct_encoder=OCTEncoder()
-        self.class_head=ClassHead(in_channels=256, num_classes=3, n_blocks=3)
-        self.CMFA=CMFA(channels=256)
+        self.class_head=ClassHead()
         
 
     def right_pad_dims_to(self, x, t):
@@ -297,12 +311,12 @@ class DiFusionSeg(EncoderDecoder):
         H,W=feature_fundus.shape[2:]
         oct=F.interpolate(oct, size=(H,W), mode='bilinear', align_corners=False)
         feat_oct=self.oct_encoder(oct)# in [b,128,256,256] out# bs, 256, h/4, w/4
-        feature = self.transform(torch.cat([feature_fundus, feat_oct], dim=1)) # (bs, 512, h/4, w/4) -> bs, 256, h/4, w/4
-        #feature=self.CMFA(feature_fundus, feat_oct)
+        #feature = self.transform(torch.cat([feature_fundus, feat_oct], dim=1)) # (bs, 512, h/4, w/4) -> bs, 256, h/4, w/4
+        feature=self.CMFA(torch.cat([feature_fundus, feat_oct], dim=1))
         """classification"""
-        # class_logits=self.class_head(feature_fusion) #[bs,3]
-        # class_num =torch.argmax(class_logits, dim=1) # [bs,1]
-        # append_prediction_to_csv(img_metas[0]['ori_filename'], class_num)
+        class_logits=self.class_head(feature) #[bs,3]
+        pred_label =torch.argmax(class_logits, dim=1) # [bs,1]
+       # append_prediction_to_csv(img_metas[0]['ori_filename'], pred_label)
         """"""
         out = self.ddim_sample(feature,img_metas)
         out = resize(
@@ -311,7 +325,7 @@ class DiFusionSeg(EncoderDecoder):
             mode='bilinear',
             align_corners=self.align_corners
         )
-        return out
+        return out,pred_label,img_metas[0]['ori_filename']
 
     def forward_train(self, img, img_metas, ir,gt_semantic_seg,label):
         oct=ir.squeeze(1)  # [b,128,256,256]
@@ -323,11 +337,12 @@ class DiFusionSeg(EncoderDecoder):
         H,W=feature_fundus.shape[2:]
         oct=F.interpolate(oct, size=(H,W), mode='bilinear', align_corners=False)
         feat_oct=self.oct_encoder(oct)# in [b,128,H W] out# bs, 256,H W
-        #feature=self.CMFA(feature_fundus, feat_oct) # (bs, 256,H W,bs, 256,H W) ->bs, 256,H W
-        feature = self.transform(torch.cat([feature_fundus, feat_oct], dim=1)) # (bs, 512, h/4, w/4) -> bs, 256, h/4, w/4
+        feature=self.CMFA(torch.cat([feature_fundus, feat_oct], dim=1)) # (bs, 256,H W,bs, 256,H W) ->bs, 256,H W
+        #feature = self.transform(torch.cat([feature_fundus, feat_oct], dim=1)) # (bs, 512, h/4, w/4) -> bs, 256, h/4, w/4
         """classification"""
         class_logits=self.class_head(feature) #[bs,3]
-        loss_cls = F.cross_entropy(class_logits, label)
+        class_weights = torch.tensor([1.0, 1.0, 5.0]).to(label.device)
+        loss_cls = focal_loss(class_logits, label, gamma=2.0, weight=class_weights)
         losses['loss_cls'] = loss_cls
         """gtdown represents the embedding of semantic segmentation labels after downsampling"""
         batch, c, h, w, device, = *feature.shape, feature.device

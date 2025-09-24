@@ -14,7 +14,7 @@ def main():
                         help='ir file')
     parser.add_argument('--fusion_img',default=f"./out/fusion/{FILENAME}",
                          help='Image file')
-    parser.add_argument('--config', default="configs/DiFusionSeg_config.py",
+    parser.add_argument('--config', default="configs/IOMSG_config.py",
                         help='Config file')
     parser.add_argument('--checkpoint', default="./exps/Done/msrs_vi_ir_meanstd_ConvNext_fusioncomplex_8083/best.pth",
                         help='Checkpoint file')

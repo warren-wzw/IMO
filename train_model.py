@@ -18,8 +18,8 @@ from model.apis import init_random_seed, set_random_seed, train_segmentor
 from model.datasets import build_dataset
 from model.models import build_segmentor
 from model.utils import (collect_env, get_device, get_root_logger,setup_multi_processes,PrintModelInfo,count_params)
-PRETRAIN='./exps/GAMMA_rgb_oct_trans3_DSC/best_mIoU_iter_10000.pth'
-SAVEPATH='./exps/GAMMA_rgb_oct_cls_trans3_DSC_512'
+PRETRAIN='./exps/Done/GAMMA_rgb_trans3_DSC_8955/best.pth'
+SAVEPATH='./exps/GAMMA_rgb_oct_cls_DSC_CMFA'
 
 os.environ['MASTER_ADDR'] = '127.0.0.1'
 os.environ['MASTER_PORT'] = '29500'
@@ -28,7 +28,7 @@ os.environ['RANK'] = '0'
     
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a segmentor')
-    parser.add_argument('--config',default="./configs/DiFusionSeg_config.py",
+    parser.add_argument('--config',default="./configs/IOMSG_config.py",
                         help='train config file path')
     parser.add_argument('--resume-from', 
                         help='the checkpoint file to resume from')

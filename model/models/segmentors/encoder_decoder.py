@@ -238,11 +238,11 @@ class EncoderDecoder(BaseSegmentor):
 
     def whole_inference(self, img, ir,img_meta, rescale):
         """Inference with full image."""
-        seg_logit = self.encode_decode(img,ir, img_meta)
-        return seg_logit
+        seg_logit,class_num,file_name = self.encode_decode(img,ir, img_meta)
+        return seg_logit,class_num,file_name
 
     def inference(self, img,ir, img_meta, rescale):
-        seg_logit = self.whole_inference(img, ir,img_meta, rescale)
+        seg_logit,class_num,file_name= self.whole_inference(img, ir,img_meta, rescale)
         output = F.softmax(seg_logit, dim=1)
         flip = img_meta[0]['flip']
         if flip:
@@ -252,15 +252,15 @@ class EncoderDecoder(BaseSegmentor):
                 output = output.flip(dims=(3,))
             elif flip_direction == 'vertical':
                 output = output.flip(dims=(2,))
-        return output
+        return output,class_num,file_name
 
     def simple_test(self, img,ir, img_meta, rescale=True):
         """Simple test with single image."""
-        seg_logit = self.inference(img, ir,img_meta, rescale)
+        seg_logit,class_num,file_name = self.inference(img, ir,img_meta, rescale)
         seg_pred = seg_logit.argmax(dim=1)
         seg_pred = seg_pred.cpu().numpy()
         seg_pred = list(seg_pred)
-        return seg_pred
+        return seg_pred,class_num,file_name
 
     def simple_test_logits(self, img, img_metas, rescale=True):
         seg_logit = self.inference(img[0], img_metas[0], rescale)

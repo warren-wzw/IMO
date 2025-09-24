@@ -6,6 +6,7 @@ import warnings
 import mmcv
 import numpy as np
 import torch
+import os
 from mmcv.engine import collect_results_cpu, collect_results_gpu
 from mmcv.image import tensor2imgs
 from mmcv.runner import get_dist_info
@@ -40,30 +41,6 @@ def single_gpu_test(model,
                     pre_eval=False,
                     format_only=False,
                     format_args={}):
-    """Test with single GPU by progressive mode.
-
-    Args:
-        model (nn.Module): Model to be tested.
-        data_loader (utils.data.Dataloader): Pytorch data loader.
-        show (bool): Whether show results during inference. Default: False.
-        out_dir (str, optional): If specified, the results will be dumped into
-            the directory to save output results.
-        efficient_test (bool): Whether save the results as local numpy files to
-            save CPU memory during evaluation. Mutually exclusive with
-            pre_eval and format_results. Default: False.
-        opacity(float): Opacity of painted segmentation map.
-            Default 0.5.
-            Must be in (0, 1] range.
-        pre_eval (bool): Use dataset.pre_eval() function to generate
-            pre_results for metric evaluation. Mutually exclusive with
-            efficient_test and format_results. Default: False.
-        format_only (bool): Only format result for results commit.
-            Mutually exclusive with pre_eval and efficient_test.
-            Default: False.
-        format_args (dict): The args for format_results. Default: {}.
-    Returns:
-        list: list of evaluation pre-results or list of save file names.
-    """
     if efficient_test:
         warnings.warn(
             'DeprecationWarning: ``efficient_test`` will be deprecated, the '
@@ -77,18 +54,15 @@ def single_gpu_test(model,
 
     model.eval()
     results = []
+    pred_label={}
     dataset = data_loader.dataset
     prog_bar = mmcv.ProgressBar(len(dataset))
-    # The pipeline about how the data_loader retrieval samples from dataset:
-    # sampler -> batch_sampler -> indices
-    # The indices are passed to dataset_fetcher to get data from dataset.
-    # data_fetcher -> collate_fn(dataset[index]) -> data_sample
-    # we use batch_sampler to get correct data idx
+
     loader_indices = data_loader.batch_sampler
 
     for batch_indices, data in zip(loader_indices, data_loader):
         with torch.no_grad():
-            result = model(return_loss=False, **data)
+            result,class_num,file_name = model(return_loss=False, **data)
 
         if show or out_dir:
             img_tensor = data['img'][0]
@@ -115,18 +89,11 @@ def single_gpu_test(model,
                     show=show,
                     out_file=out_file,
                     opacity=opacity)
-
-        # if efficient_test:
-        #     result = [np2tmp(_, tmpdir='.efficient_test') for _ in result]
-
-        # if format_only:
-        #     result = dataset.format_results(
-        #         result, indices=batch_indices, **format_args)
         if pre_eval:
-            # TODO: adapt samples_per_gpu > 1.
-            # only samples_per_gpu=1 valid now
             result = dataset.pre_eval(result, indices=batch_indices)
             results.extend(result)
+            key = os.path.splitext(file_name)[0]
+            pred_label[key] = int(class_num)  # value 转成 int
         else:
             results.extend(result)
 
@@ -134,7 +101,7 @@ def single_gpu_test(model,
         for _ in range(batch_size):
             prog_bar.update()
 
-    return results
+    return results,pred_label
 
 
 def multi_gpu_test(model,
@@ -145,7 +112,7 @@ def multi_gpu_test(model,
                    pre_eval=False,
                    format_only=False,
                    format_args={}):
-  
+    
     if efficient_test:
         warnings.warn(
             'DeprecationWarning: ``efficient_test`` will be deprecated, the '
@@ -159,6 +126,7 @@ def multi_gpu_test(model,
 
     model.eval()
     results = []
+    pred_label={}
     dataset = data_loader.dataset
     # The pipeline about how the data_loader retrieval samples from dataset:
     # sampler -> batch_sampler -> indices
@@ -176,7 +144,7 @@ def multi_gpu_test(model,
 
     for batch_indices, data in zip(loader_indices, data_loader):
         with torch.no_grad():
-            result = model(return_loss=False, rescale=True, **data)
+            result,class_num,file_name = model(return_loss=False, rescale=True, **data)
 
         if efficient_test:
             result = [np2tmp(_, tmpdir='.efficient_test') for _ in result]
@@ -188,6 +156,8 @@ def multi_gpu_test(model,
             # TODO: adapt samples_per_gpu > 1.
             # only samples_per_gpu=1 valid now
             result = dataset.pre_eval(result, indices=batch_indices)
+            key = os.path.splitext(file_name)[0]
+            pred_label[key] = int(class_num)  # value 转成 int
 
         results.extend(result)
 

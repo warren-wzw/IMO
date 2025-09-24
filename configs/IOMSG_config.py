@@ -9,7 +9,7 @@ custom_imports = dict(imports='mmcls.models', allow_failed_imports=False)
 # model settings
 norm_cfg = dict(type='SyncBN', requires_grad=True)
 model = dict(
-    type='DiFusionSeg',
+    type='IOMSG',
     timesteps=TimeStep,
     bit_scale=0.01,
     pretrained=None,

@@ -11,6 +11,8 @@ import torch
 from mmcv.cnn.utils import revert_sync_batchnorm
 from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,)
 from mmcv.utils import DictAction
+import pandas as pd
+from sklearn.metrics import accuracy_score, recall_score, f1_score,precision_score
 
 from model import digit_version
 from thop import profile
@@ -20,8 +22,8 @@ from model.models import build_segmentor
 from model.utils import build_difusionseg, get_device,PrintModelInfo,count_params
 """please use RTX4090 to fork the results"""
 GPU=0
-CONFIG='./configs/DiFusionSeg_config.py'
-CHECKPOINT='./exps/GAMMA_rgb_oct_cls_trans3_DSC/best.pth'
+CONFIG='./configs/IOMSG_config.py'
+CHECKPOINT='./exps/GAMMA_rgb_oct_cls_DSC_CMFA/best_mIoU_iter_75000.pth'
 OUT="./out/"
 METRIC='mDice' # mIoU, mDice
 
@@ -83,6 +85,55 @@ def parse_args():
 
     return args
 
+def evaluate_predictions(pred_label, label_file, average='macro'):
+ # 1️⃣ 读取真实标签
+    true_label_dict = {}
+    with open(label_file, "r") as f:
+        for line in f:
+            key, val = line.strip().split()
+            true_label_dict[key] = int(val)
+
+    # 2️⃣ 只计算预测过的样本
+    common_keys = [k for k in true_label_dict if k in pred_label]
+    y_true = [true_label_dict[k] for k in common_keys]
+    y_pred = [pred_label[k] for k in common_keys]
+
+    # 3️⃣ 计算总体指标
+    acc = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, average=average, zero_division=0)
+    recall = recall_score(y_true, y_pred, average=average, zero_division=0)
+    f1 = f1_score(y_true, y_pred, average=average, zero_division=0)
+
+    print(f"\nOverall Metrics:")
+    print(f"Accuracy : {acc:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1       : {f1:.4f}\n")
+
+    # 4️⃣ 计算每类指标
+    labels = sorted(list(set(y_true + y_pred)))  # 取出现过的类别
+    precision_per_class = precision_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
+    recall_per_class = recall_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
+    f1_per_class = f1_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
+
+    print("Per-Class Metrics:")
+    print("Class | Precision | Recall | F1")
+    for i, cls in enumerate(labels):
+        print(f"{cls:5} | {precision_per_class[i]:9.4f} | {recall_per_class[i]:6.4f} | {f1_per_class[i]:5.4f}")
+
+    return {
+        "Accuracy": acc,
+        "Precision": precision,
+        "Recall": recall,
+        "F1": f1,
+        "Per-Class": {
+            "labels": labels,
+            "precision": precision_per_class,
+            "recall": recall_per_class,
+            "f1": f1_per_class
+        }
+    }
+
 def main():
     args = parse_args()
     cfg = mmcv.Config.fromfile(args.config)
@@ -130,22 +181,6 @@ def main():
     model = build_segmentor(cfg.model, test_cfg=cfg.get('test_cfg')).to(cfg.device)
     PrintModelInfo(model)
     count_params(model)
-    """count the FLOPs and parameters"""
-    # pseudo_vi = torch.randn(1, 3, 480, 640).to(cfg.device)
-    # print(f"Model is on device: {next(model.parameters()).device}")
-    # img_meta={}
-    # img_meta = [{
-    #     'ori_shape': pseudo_vi.shape[2:],
-    #     'img_shape': pseudo_vi.shape[2:],
-    #     'pad_shape': pseudo_vi.shape[2:],
-    #     'flip': False
-    # }]
-    # flops, params = profile(model, inputs=([pseudo_vi],[img_meta]))
-    # gflops = flops / 1e9  # 除以 10^9 转换为 GFLOPs
-    # params_million = params / 1e6  # 除以 10^6 转换为百万个参数
-    # print(f"Total FLOPs: {gflops:.2f} GFLOPs") 
-    # print(f"Total Parameters: {params_million:.2f} M") 
-    """"""
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
     model.CLASSES = dataset.CLASSES
     model.PALETTE = dataset.PALETTE
@@ -161,7 +196,7 @@ def main():
             'Please use MMCV >= 1.4.4 for CPU training!'
     model = revert_sync_batchnorm(model)
     model = build_difusionseg(model, cfg.device, device_ids=cfg.gpu_ids)
-    results = single_gpu_test(
+    results,pred_label = single_gpu_test(
         model,
         data_loader,
         args.show,
@@ -172,22 +207,9 @@ def main():
         format_only=args.format_only or False,
         format_args=eval_kwargs)
 
-    rank, _ = get_dist_info()
-    if rank == 0:
-        if args.out:
-            warnings.warn(
-                'The behavior of ``args.out`` has been changed since MMSeg '
-                'v0.16, the pickled outputs could be seg map as type of '
-                'np.array, pre-eval results or file paths for '
-                '``dataset.format_results()``.')
-            print(f'\nwriting results to {args.out}')
-            mmcv.dump(results, args.out)
-        if args.eval:
-            eval_kwargs.update(metric=args.eval)
-            metric = dataset.evaluate(results, **eval_kwargs)
-            metric_dict = dict(config=args.config, metric=metric)
-            if tmpdir is not None and False:
-                shutil.rmtree(tmpdir)
-
+    eval_kwargs.update(metric=args.eval)
+    metric = dataset.evaluate(results, **eval_kwargs)
+    evaluate_predictions(pred_label, '/home/BlueDisk/Dataset/HKU/GAMMA/seg/class_label.txt')
+    
 if __name__ == '__main__':
     main()
