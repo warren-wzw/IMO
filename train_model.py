@@ -18,7 +18,7 @@ from model.apis import init_random_seed, set_random_seed, train_segmentor
 from model.datasets import build_dataset
 from model.models import build_segmentor
 from model.utils import (collect_env, get_device, get_root_logger,setup_multi_processes,PrintModelInfo,count_params)
-PRETRAIN='./exps/Done/GAMMA_rgb_trans3_DSC_8955/best.pth'
+PRETRAIN='./exps/GAMMA_rgb_oct_cls_DSC_CMFA_8863/best.pth'
 SAVEPATH='./exps/GAMMA_rgb_oct_cls_DSC_CMFA'
 
 os.environ['MASTER_ADDR'] = '127.0.0.1'
@@ -41,7 +41,7 @@ def parse_args():
                         help='ids of gpus to use (only applicable to non-distributed training)')
     group_gpus.add_argument('--gpu-id',type=int,default=[0,1],
                         help='id of gpu to use (only applicable to non-distributed training)')
-    parser.add_argument('--seed', type=int,default=None, 
+    parser.add_argument('--seed', type=int,default=986523547, 
                         help='random seed')
     parser.add_argument('--diff_seed',action='store_true',
                         help='Whether or not set different seeds for different ranks')

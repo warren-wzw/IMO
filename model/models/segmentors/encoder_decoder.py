@@ -106,7 +106,6 @@ class EncoderDecoder(BaseSegmentor):
         """Encode images with backbone and decode into a semantic segmentation
         map of the same size as input."""
         x = self.extract_feat(img)
-        #ir=self.irnet(ir)
         out = self._decode_head_forward_test(x, img_metas)
         out = resize(
             input=out,

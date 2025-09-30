@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 import cv2
 import os
+import csv
 from matplotlib import cm
 import matplotlib.pyplot as plt
 
@@ -231,3 +232,25 @@ def save_heatmap(feature_map, save_path="heatmaps/low_fusion.png"):
     plt.close()
 
     print(f"Heatmap saved to {save_path}")
+    
+    
+def append_prediction_to_csv(filename, pred_class, csv_path="./out/Classification_Results.csv"):
+    header = ["data", "non", "early", "mid_advanced"]
+
+    # 如果文件不存在，先写入表头
+    write_header = not os.path.exists(csv_path)
+
+    with open(csv_path, mode="a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+
+        if write_header:
+            writer.writerow(header)
+
+        # 去掉扩展名作为 data
+        data_name = os.path.splitext(filename)[0]
+
+        # one-hot 编码
+        row = [0, 0, 0]
+        row[pred_class] = 1
+
+        writer.writerow([data_name] + row)

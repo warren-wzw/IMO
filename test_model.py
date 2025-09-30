@@ -23,9 +23,9 @@ from model.utils import build_difusionseg, get_device,PrintModelInfo,count_param
 """please use RTX4090 to fork the results"""
 GPU=0
 CONFIG='./configs/IOMSG_config.py'
-CHECKPOINT='./exps/GAMMA_rgb_oct_cls_DSC_CMFA/best_mIoU_iter_75000.pth'
+CHECKPOINT='./exps/GAMMA_rgb_oct_cls_DSC_CMFA/best_mIoU_iter_95000.pth'
 OUT="./out/"
-METRIC='mDice' # mIoU, mDice
+METRIC='mIoU' # mIoU, mDice
 
 def parse_args():
     parser = argparse.ArgumentParser(
