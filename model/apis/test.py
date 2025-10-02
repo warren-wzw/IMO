@@ -7,10 +7,48 @@ import mmcv
 import numpy as np
 import torch
 import os
+from sklearn.metrics import accuracy_score, recall_score, f1_score,precision_score
 from mmcv.engine import collect_results_cpu, collect_results_gpu
 from mmcv.image import tensor2imgs
 from mmcv.runner import get_dist_info
 
+def evaluate_predictions(pred_label, label_file, average='macro'):
+     # 1️⃣ 读取真实标签
+    true_label_dict = {}
+    with open(label_file, "r") as f:
+        for line in f:
+            key, val = line.strip().split()
+            true_label_dict[key] = int(val)
+
+    # 2️⃣ 只计算预测过的样本
+    common_keys = [k for k in true_label_dict if k in pred_label]
+    y_true = [true_label_dict[k] for k in common_keys]
+    y_pred = [pred_label[k] for k in common_keys]
+
+    # 3️⃣ 计算总体指标
+    acc = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, average=average, zero_division=0)
+    recall = recall_score(y_true, y_pred, average=average, zero_division=0)
+    f1 = f1_score(y_true, y_pred, average=average, zero_division=0)
+
+    print(f"\nOverall Metrics:")
+    print(f"Accuracy : {acc:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1       : {f1:.4f}\n")
+
+    # 4️⃣ 计算每类指标
+    labels = sorted(list(set(y_true + y_pred)))  # 取出现过的类别
+    precision_per_class = precision_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
+    recall_per_class = recall_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
+    f1_per_class = f1_score(y_true, y_pred, labels=labels, average=None, zero_division=0)
+
+    print("Per-Class Metrics:")
+    print("Class | Precision | Recall | F1")
+    for i, cls in enumerate(labels):
+        print(f"{cls:5} | {precision_per_class[i]:9.4f} | {recall_per_class[i]:6.4f} | {f1_per_class[i]:5.4f}")
+
+    return 0
 
 def np2tmp(array, temp_file_name=None, tmpdir=None):
     """Save ndarray to local numpy file.
@@ -118,8 +156,6 @@ def multi_gpu_test(model,
             'DeprecationWarning: ``efficient_test`` will be deprecated, the '
             'evaluation is CPU memory friendly with pre_eval=True')
         mmcv.mkdir_or_exist('.efficient_test')
-    # when none of them is set true, return segmentation results as
-    # a list of np.array.
     assert [efficient_test, pre_eval, format_only].count(True) <= 1, \
         '``efficient_test``, ``pre_eval`` and ``format_only`` are mutually ' \
         'exclusive, only one of them could be true .'
@@ -128,14 +164,6 @@ def multi_gpu_test(model,
     results = []
     pred_label={}
     dataset = data_loader.dataset
-    # The pipeline about how the data_loader retrieval samples from dataset:
-    # sampler -> batch_sampler -> indices
-    # The indices are passed to dataset_fetcher to get data from dataset.
-    # data_fetcher -> collate_fn(dataset[index]) -> data_sample
-    # we use batch_sampler to get correct data idx
-
-    # batch_sampler based on DistributedSampler, the indices only point to data
-    # samples of related machine.
     loader_indices = data_loader.batch_sampler
 
     rank, world_size = get_dist_info()
@@ -153,8 +181,6 @@ def multi_gpu_test(model,
             result = dataset.format_results(
                 result, indices=batch_indices, **format_args)
         if pre_eval:
-            # TODO: adapt samples_per_gpu > 1.
-            # only samples_per_gpu=1 valid now
             result = dataset.pre_eval(result, indices=batch_indices)
             key = os.path.splitext(file_name)[0]
             pred_label[key] = int(class_num)  # value 转成 int
@@ -171,4 +197,5 @@ def multi_gpu_test(model,
         results = collect_results_gpu(results, len(dataset))
     else:
         results = collect_results_cpu(results, len(dataset), tmpdir)
+    evaluate_predictions(pred_label, '/home/BlueDisk/Dataset/HKU/GAMMA/seg/class_label.txt')
     return results

@@ -1,6 +1,7 @@
 # dataset settings
 dataset_type = 'CityscapesDataset'
-data_root = '/home/BlueDisk/Dataset/HKU/GAMMA/seg/'
+train_root = '/home/BlueDisk/Dataset/HKU/GAMMA/seg/'
+test_root = '/home/BlueDisk/Dataset/HKU/GAMMA/seg/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 crop_size = (640, 640)
@@ -37,21 +38,21 @@ data = dict(
     workers_per_gpu=1,
     train=dict(
         type=dataset_type,
-        data_root=data_root,
+        data_root=train_root,
         img_dir='train/vi',
         ir_dir='train/oct',
         ann_dir='train/label',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        data_root=data_root,
+        data_root=test_root,
         img_dir='test/vi',
         ir_dir='test/oct',
         ann_dir='test/label',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        data_root=data_root,
+        data_root=test_root,
         img_dir='test/vi',
         ir_dir='test/oct',
         ann_dir='test/label',

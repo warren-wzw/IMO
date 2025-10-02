@@ -252,7 +252,7 @@ class IOMSG(EncoderDecoder):
         """"""
         oct=ir.squeeze(1)
         feature_fundus = self.extract_feat(img)[0]#[b,256, h/4, w/4]
-        """oct"""
+        """oct encoder"""
         H,W=feature_fundus.shape[2:]
         oct=F.interpolate(oct, size=(H,W), mode='bilinear', align_corners=False)
         feat_oct=self.oct_encoder(oct)# in [b,128,256,256] out# bs, 256, h/4, w/4
@@ -260,7 +260,7 @@ class IOMSG(EncoderDecoder):
         """classification"""
         class_logits=self.class_head(feature) #[bs,3]
         pred_label =torch.argmax(class_logits, dim=1) # [bs,1]
-        """"""
+        """segmentation"""
         out = self.ddim_sample(feature,img_metas)
         out = resize(
             input=out,
@@ -280,39 +280,38 @@ class IOMSG(EncoderDecoder):
         H,W=feature_fundus.shape[2:]
         oct=F.interpolate(oct, size=(H,W), mode='bilinear', align_corners=False)
         feat_oct=self.oct_encoder(oct)# in [b,128,H W] out# bs, 256,H W
-        #feature = self.transform(torch.cat([feature_fundus, feat_oct], dim=1)) # (bs, 512, h/4, w/4) -> bs, 256, h/4, w/4
-        #feature=self.CMFA(torch.cat([feature_fundus, feat_oct], dim=1)) # (bs, 256,H W,bs, 256,H W) ->bs, 256,H W
         feature=self.CMFA(feature_fundus, feat_oct)
         """classification"""
         class_logits=self.class_head(feature) #[bs,3]
         loss_cls = F.cross_entropy(class_logits, label)
         losses['loss_cls'] = loss_cls
-        # """gtdown represents the embedding of semantic segmentation labels after downsampling"""
-        # batch, c, h, w, device, = *feature.shape, feature.device
-        # gt_down = resize(gt_semantic_seg.float(), size=(h, w), mode="nearest")
-        # gt_down = gt_down.to(gt_semantic_seg.dtype)
-        # gt_down[gt_down == 255] = self.num_classes
-        # gt_down = self.embedding_table(gt_down).squeeze(1).permute(0, 3, 1, 2)
-        # gt_down = (torch.sigmoid(gt_down) * 2 - 1) * self.bit_scale
-        # """sample time"""
-        # times = torch.zeros((batch,), device=device).float().uniform_(self.sample_range[0],self.sample_range[1])  # [bs]  
-        # """random noise"""
-        # noise = torch.randn_like(gt_down)
-        # noise_level = self.log_snr(times)
-        # padded_noise_level = self.right_pad_dims_to(img, noise_level)#turn [b]->[b,1,1,1]
-        # alpha, sigma = log_snr_to_alpha_sigma(padded_noise_level)
-        # noised_gt = alpha * gt_down + sigma * noise
-        # """cat input and noise"""
-        # feat = torch.cat([feature, noised_gt], dim=1)
-        # feat = self.transform(feat)#turn b,512,h/4, w/4 to b,256,h/4, w/4
-        # """conditional input"""
-        # input_times = self.time_mlp(noise_level)
-        # loss_decode,_= self.decode_head.forward_train([feat], 
-        #                                              input_times, 
-        #                                              img_metas,
-        #                                              gt_semantic_seg,
-        #                                              self.train_cfg)
-        # losses.update(loss_decode)
+        """gtdown represents the embedding of semantic segmentation labels after downsampling"""
+        batch, c, h, w, device, = *feature.shape, feature.device
+        gt_down = resize(gt_semantic_seg.float(), size=(h, w), mode="nearest")
+        gt_down = gt_down.to(gt_semantic_seg.dtype)
+        gt_down[gt_down == 255] = self.num_classes
+        gt_down = self.embedding_table(gt_down).squeeze(1).permute(0, 3, 1, 2)
+        gt_down = (torch.sigmoid(gt_down) * 2 - 1) * self.bit_scale
+        """sample time"""
+        times = torch.zeros((batch,), device=device).float().uniform_(self.sample_range[0],self.sample_range[1])  # [bs]  
+        """random noise"""
+        noise = torch.randn_like(gt_down)
+        noise_level = self.log_snr(times)
+        padded_noise_level = self.right_pad_dims_to(img, noise_level)#turn [b]->[b,1,1,1]
+        alpha, sigma = log_snr_to_alpha_sigma(padded_noise_level)
+        noised_gt = alpha * gt_down + sigma * noise
+        """cat input and noise"""
+        feat = torch.cat([feature, noised_gt], dim=1)
+        feat = self.transform(feat)#turn b,512,h/4, w/4 to b,256,h/4, w/4
+        """conditional input"""
+        input_times = self.time_mlp(noise_level)
+        loss_decode,_= self.decode_head.forward_train([feat], 
+                                                     input_times, 
+                                                     img_metas,
+                                                     gt_semantic_seg,
+                                                     self.train_cfg)
+        losses.update(loss_decode)
+
         return losses
 
     

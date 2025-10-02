@@ -131,16 +131,7 @@ class DeformableHeadWithTime(BaseDecodeHead):
     def forward_train(self, inputs, times, img_metas, gt_semantic_seg, train_cfg):
         seg_logits = self.forward(inputs, times)#[b,numclssses,80,120]
         losses = self.losses(seg_logits, gt_semantic_seg)
-        
-        # seg_logits_ = resize(
-        #     input=seg_logits,
-        #     size=gt_semantic_seg.shape[2:],
-        #     mode='bilinear',
-        #     align_corners=self.align_corners)
-        # gt_one_hot = F.one_hot(gt_semantic_seg.squeeze(1).long(), num_classes=3)
-        # gt_one_hot = gt_one_hot.permute(0, 3, 1, 2)
-        # losses['loss_dice'] = self.dice_loss(seg_logits_, gt_one_hot)#B x C x H x W B 1 H W
-        
+    
         return losses,seg_logits
 
     def forward_test(self, inputs, times):
