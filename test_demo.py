@@ -4,23 +4,23 @@ os.chdir(sys.path[0])
 from argparse import ArgumentParser
 from model.apis import inference_segmentor, init_segmentor, show_result_pyplot
 from model.core.evaluation import get_palette
-FILENAME="00341D.png"
+FILENAME="0009.png"
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('--img', default=f"./dataset/testimages/vi/{FILENAME}",
+    parser.add_argument('--img', default=f"/home/BlueDisk/Dataset/HKU/GAMMA/seg/test/vi/{FILENAME}",
                         help='rgb file')
-    parser.add_argument('--ir',default=f"./dataset/testimages/ir/{FILENAME}",
+    parser.add_argument('--ir',default=f"/home/BlueDisk/Dataset/HKU/GAMMA/seg/test/vi/{FILENAME}",
                         help='ir file')
     parser.add_argument('--fusion_img',default=f"./out/fusion/{FILENAME}",
                          help='Image file')
     parser.add_argument('--config', default="configs/IOMSG_config.py",
                         help='Config file')
-    parser.add_argument('--checkpoint', default="./exps/Done/msrs_vi_ir_meanstd_ConvNext_fusioncomplex_8083/best.pth",
+    parser.add_argument('--checkpoint', default="./exps/GAMMA_rgb_oct_cls_DSC_CMFA/best.pth",
                         help='Checkpoint file')
     parser.add_argument('--segout', default=f"./out/seg/{FILENAME}", 
                         help='Path to output file')
-    parser.add_argument('--device', default='cuda:1', 
+    parser.add_argument('--device', default='cuda:0', 
                         help='Device used for inference')
     parser.add_argument(
         '--palette',

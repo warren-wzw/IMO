@@ -10,6 +10,7 @@ from mmcv.cnn import ConvModule
 
 from ..builder import SEGMENTORS
 from .encoder_decoder import EncoderDecoder
+from torchvision.transforms import ToPILImage
 from .utils import *
 
  
@@ -25,7 +26,52 @@ def alpha_cosine_log_snr(t, ns=0.0002, ds=0.00025):
 
 def log_snr_to_alpha_sigma(log_snr):
     return torch.sqrt(torch.sigmoid(log_snr)), torch.sqrt(torch.sigmoid(-log_snr))
-           
+
+def save_channels_as_images(tensor, output_dir='output', file_prefix='channel'):
+    """
+
+    Parm:
+    - tensor: input shape as [b, channels, height, width]。
+    - output_dir: 
+    - file_prefix: 
+    """
+    import os
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    tensor = tensor.permute(1, 0, 2, 3)
+    to_image = ToPILImage()
+    for i in range(tensor.shape[0]):  # 假设tensor.shape[0] 是通道数
+        single_channel = tensor[i]
+        img = to_image(single_channel.squeeze())  # 去掉批次维度
+        img.save(os.path.join(output_dir, f'{file_prefix}_{i}.png'))
+
+def save_channels_combined(tensor, output_dir='output', file_name='combined.png'):
+    """
+    Save all channels of a tensor as a single image by summing/averaging channels.
+    
+    Args:
+        tensor: torch.Tensor, shape [B, C, H, W]
+        output_dir: str, directory to save the image
+        file_name: str, output file name
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    # 假设只处理 batch=1
+    if tensor.shape[0] != 1:
+        tensor = tensor[0:1]  # 只取第一个batch
+    
+    # [B,C,H,W] -> [C,H,W]
+    tensor = tensor.squeeze(0)
+    
+    # 通道叠加，这里用平均，也可以改为 sum
+    combined = tensor.mean(dim=0)  # shape: [H, W]
+    
+    # 转 PIL 并保存
+    to_image = ToPILImage()
+    img = to_image(combined)
+    img.save(os.path.join(output_dir, file_name))
+                  
 class LearnedSinusoidalPosEmb(nn.Module):
     """ following @crowsonkb 's lead with learned sinusoidal pos emb """
     """ https://github.com/crowsonkb/v-diffusion-jax/blob/master/diffusion/models/danbooru_128.py#L8 """
@@ -197,6 +243,15 @@ class IOMSG(EncoderDecoder):
         self.oct_encoder=OCTEncoder()
         self.class_head=ClassHead()
         self.CMFA=CMFA(channels=256)
+        self.CMFA= ConvModule(
+            self.decode_head.in_channels[0] * 2,
+            self.decode_head.in_channels[0],
+            1,
+            padding=0,
+            conv_cfg=None,
+            norm_cfg=None,
+            act_cfg=None
+        )
         
 
     def right_pad_dims_to(self, x, t):
@@ -224,6 +279,9 @@ class IOMSG(EncoderDecoder):
         mask_t = torch.randn((self.randsteps, self.decode_head.in_channels[0], h, w), device=device)
         for idx, (times_now, times_next) in enumerate(time_pairs):
             feat = torch.cat([feature,mask_t], dim=1) #[b,512,h/4,w/4]
+            
+            save_channels_combined(feat)
+            
             feat = self.transform(feat)#[b,256,h/4,w/4]
             log_snr = self.log_snr(times_now)#[1]
             log_snr_next = self.log_snr(times_next)#[1]
@@ -247,21 +305,23 @@ class IOMSG(EncoderDecoder):
         logit = mask_logit.mean(dim=0, keepdim=True)
         return logit
     
-    
     def encode_decode(self, img,ir, img_metas):
         """"""
         oct=ir.squeeze(1)
         feature_fundus = self.extract_feat(img)[0]#[b,256, h/4, w/4]
+        feature=feature_fundus
         """oct encoder"""
         H,W=feature_fundus.shape[2:]
         oct=F.interpolate(oct, size=(H,W), mode='bilinear', align_corners=False)
         feat_oct=self.oct_encoder(oct)# in [b,128,256,256] out# bs, 256, h/4, w/4
-        feature=self.CMFA(feature_fundus, feat_oct)
+        #feature=self.CMFA(feature_fundus, feat_oct)
+        feature=self.CMFA(torch.cat([feature_fundus,feature], dim=1))
         """classification"""
         class_logits=self.class_head(feature) #[bs,3]
         pred_label =torch.argmax(class_logits, dim=1) # [bs,1]
         """segmentation"""
         out = self.ddim_sample(feature,img_metas)
+        #out=self._auxiliary_head_forward_test([feature])
         out = resize(
             input=out,
             size=img.shape[2:],
@@ -272,10 +332,10 @@ class IOMSG(EncoderDecoder):
 
     def forward_train(self, img, img_metas, ir,gt_semantic_seg,label):
         oct=ir.squeeze(1)  # [b,128,256,256]
-        label=label.squeeze()
+        label = label.view(label.size(0))
         losses = dict()
         """image"""
-        feature_fundus = self.extract_feat(img)[0]  # bs, 256, h/4, w/4
+        feature_fundus = self.extract_feat(img)[0]  # bs, 256, h/4, w
         """oct"""
         H,W=feature_fundus.shape[2:]
         oct=F.interpolate(oct, size=(H,W), mode='bilinear', align_corners=False)
@@ -311,7 +371,8 @@ class IOMSG(EncoderDecoder):
                                                      gt_semantic_seg,
                                                      self.train_cfg)
         losses.update(loss_decode)
-
+        # loss_aux = self._auxiliary_head_forward_train([feature], img_metas, gt_semantic_seg)
+        # losses.update(loss_aux)
         return losses
 
     

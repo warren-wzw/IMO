@@ -49,7 +49,7 @@ class EncoderDecoder(BaseSegmentor):
                         norm_cfg=dict(type='GN', num_groups=32),
                         num_outs=4)
         self._init_decode_head(decode_head)
-        #self._init_auxiliary_head(auxiliary_head)
+        self._init_auxiliary_head(auxiliary_head)
 
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
@@ -147,6 +147,10 @@ class EncoderDecoder(BaseSegmentor):
             losses.update(add_prefix(loss_aux, 'aux'))
 
         return losses
+    
+    def _auxiliary_head_forward_test(self, x): 
+        seg_logits = self.auxiliary_head.forward_test(x)
+        return seg_logits
 
     def forward_dummy(self, img):
         """Dummy forward function."""

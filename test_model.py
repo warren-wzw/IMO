@@ -23,7 +23,7 @@ from model.utils import build_difusionseg, get_device,PrintModelInfo,count_param
 """please use RTX4090 to fork the results"""
 GPU=0
 CONFIG='./configs/IOMSG_config.py'
-CHECKPOINT='./exps/GAMMA_rgb_oct_cls_DSC_CMFA/iter_100000.pth'
+CHECKPOINT='./exps/GAMMA_rgb_oct_cls_DSC_CMFA/best.pth'
 OUT="./out/"
 METRIC='mDice' # mIoU, mDice
 
@@ -105,8 +105,8 @@ def evaluate_predictions(pred_label, label_file, average='macro'):
     f1 = f1_score(y_true, y_pred, average=average, zero_division=0)
 
     print(f"\nOverall Metrics:")
-    print(f"Accuracy : {acc:.4f}")
     print(f"Precision: {precision:.4f}")
+    print(f"Accuracy : {acc:.4f}")
     print(f"Recall   : {recall:.4f}")
     print(f"F1       : {f1:.4f}\n")
 
@@ -122,8 +122,8 @@ def evaluate_predictions(pred_label, label_file, average='macro'):
         print(f"{cls:5} | {precision_per_class[i]:9.4f} | {recall_per_class[i]:6.4f} | {f1_per_class[i]:5.4f}")
 
     return {
-        "Accuracy": acc,
         "Precision": precision,
+        "Accuracy": acc,
         "Recall": recall,
         "F1": f1,
         "Per-Class": {

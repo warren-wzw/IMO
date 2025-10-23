@@ -1,5 +1,5 @@
-# DiFusionSeg
-This is official Pytorch implementation of "[DiFusionSeg: Diffusion-Driven Semantic Segmentation with Multi-modal Fusion for Perception Optimization]()"
+# IMO
+This is official Pytorch implementation of "[An Iterative Multimodal Optimization Method with Joint Segmentation and Grading for Glaucoma Diagnosis]()"
  - 
 ```
 @article{
