@@ -6,7 +6,7 @@ This is official Pytorch implementation of "[Joint Segmentation and Grading with
 }
 ```
 ## Framework
-![image](./assets/ModelAarch.png)
+![image](./assets/ModelArch.png)
 
 ## Recommended Environment
  - [ ] torch  1.13.1
