@@ -67,10 +67,10 @@ python
 python train_model.py
 ```
 ### Segmentation comparison
-![image](./images/SegResult.png)
-![image](./images/SegTable.png)
+![image](./assets/SegResult.png)
+![image](./assets/SegTable.png)
 ### Grading comparison
-![image](./images/ClsTable.png)
+![image](./assets/ClsTable.png)
 
 ## If this work is helpful to you, please cite it as：
 ```
