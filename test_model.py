@@ -78,7 +78,7 @@ def parse_args():
         help='job launcher')
     parser.add_argument('--opacity',type=float,default=1,
         help='Opacity of painted segmentation map. In (0, 1] range.')
-    parser.add_argument('--seed',type=int,default=2002,
+    parser.add_argument('--seed',type=int,default=2000,
         help='random seed')
     parser.add_argument('--local_rank', type=int, default=0)
     args = parser.parse_args()

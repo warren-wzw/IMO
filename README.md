@@ -1,12 +1,12 @@
 # IMO
-This is official Pytorch implementation of "[An Iterative Multimodal Optimization Method with Joint Segmentation and Grading for Glaucoma Diagnosis]()"
+This is official Pytorch implementation of "[Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis]()"
  - 
 ```
 @article{
 }
 ```
 ## Framework
-![image](./images/model_arch.png)
+![image](./assets/ModelAarch.png)
 
 ## Recommended Environment
  - [ ] torch  1.13.1
@@ -20,39 +20,33 @@ This is official Pytorch implementation of "[An Iterative Multimodal Optimizatio
 
 ## Experiments 
 ### Dataset & Checkpoints & Results
-The checkpoints and results can be in [DiFusionSeg](https://www.dropbox.com/scl/fo/zjbyp7pml54epiz8wg4gj/AIGFfGfG8Ea_XU25WwyxQno?rlkey=1ywmahphox5f4kdqfrr8h1234&st=mag0vanh&dl=0). Download MSRS dataset from [MSRS](https://pan.baidu.com/s/18q_3IEHKZ48YBy2PzsOtRQ?pwd=MSRS) and the MFNet dataset from [MFNet](https://www.mi.t.u-tokyo.ac.jp/static/projects/mil_multispectral/).
+The checkpoints and results can be in [IMO](). Download MSRS dataset from [GAMMA]().
 If you need to evaluate other datasets, please organize them as follows:
 ```
 ├── /dataset
-    MSRS/
-    ├── test
-    │   ├── ir
-    │   ├── Segmentation_labels
-    │   ├── Segmentation_visualize
-    │   └── vi
-    └── train
-        ├── ir
-        ├── Segmentation_labels
-        └── vi
-    MFD/
-    ├── test
-    │   ├── ir
-    │   ├── Segmentation_labels
-    │   ├── Segmentation_visualize
-    │   └── vi
-    ├── test_day
-    │   ├── ir
-    │   ├── Segmentation_labels
-    │   └── vi
-    ├── test_night
-    │   ├── ir
-    │   ├── Segmentation_labels
-    │   └── vi
-    └── train
-        ├── ir
-        ├── Segmentation_labels
-        └── vi
-    ......
+    GAMMA/
+    ├── Cls
+    │   ├── train
+    │   │   ├── class1
+    │   │   ├── class2
+    │   │   └── class3
+    │   └── val
+    │       ├── class1
+    │       ├── class2
+    │       └── class3
+    └── Seg
+        ├── class_label.txt
+        |
+        ├── test
+        │   ├── label
+        │   ├── oct
+        │   └── vi
+        │   
+        └── train
+            ├── label
+            ├── oct
+            └── vi
+        ......
 ```
 ### Evaluate model
 python
@@ -65,7 +59,7 @@ python
 python test_demo.py --img="./images/00131D_vi.png" --ir="./images/00131D_ir.png" --checkpoint="./exps/Done/msrs_vi_ir_meanstd_ConvNext_fusioncomplex_8083/best.pth" --segout="./seg.png"
 ```
 ### To Train
-Before training DiFusionSeg, you need to download the MSRS dataset MSRS and putting it in ./datasets.
+Before training IMO, you need to download the GAMMA dataset and putting it in ./datasets.
 
 Then running 
 python
@@ -73,9 +67,11 @@ python
 python train_model.py
 ```
 ### Segmentation comparison
-![image](./images/seg.png)
-### Fusion comparison
-![image](./images/fusion.png)
+![image](./images/SegResult.png)
+![image](./images/SegTable.png)
+### Grading comparison
+![image](./images/ClsTable.png)
+
 ## If this work is helpful to you, please cite it as：
 ```
 @article{

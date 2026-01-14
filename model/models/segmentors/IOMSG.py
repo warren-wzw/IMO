@@ -56,18 +56,11 @@ def save_channels_combined(tensor, output_dir='output', file_name='combined.png'
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
-    # 假设只处理 batch=1
     if tensor.shape[0] != 1:
-        tensor = tensor[0:1]  # 只取第一个batch
-    
+        tensor = tensor[0:1]  
     # [B,C,H,W] -> [C,H,W]
     tensor = tensor.squeeze(0)
-    
-    # 通道叠加，这里用平均，也可以改为 sum
     combined = tensor.mean(dim=0)  # shape: [H, W]
-    
-    # 转 PIL 并保存
     to_image = ToPILImage()
     img = to_image(combined)
     img.save(os.path.join(output_dir, file_name))
@@ -90,7 +83,6 @@ class LearnedSinusoidalPosEmb(nn.Module):
         return fouriered
 
 class DepthwiseConvBlock(nn.Module):
-    """深度可分卷积 + BN + ReLU"""
     def __init__(self, in_ch, out_ch, kernel_size=3, padding=1):
         super().__init__()
         self.dw = nn.Conv2d(in_ch, in_ch, kernel_size, padding=padding, groups=in_ch, bias=False)
@@ -109,9 +101,7 @@ class OCTEncoder(nn.Module):
     def __init__(self, in_channels=128, out_channels=256, num_blocks=3):
         super().__init__()
         layers = []
-        # 第一层直接投影通道
         layers.append(DepthwiseConvBlock(in_channels, out_channels))
-        # 中间残差卷积块
         for _ in range(num_blocks - 1):
             layers.append(nn.Sequential(
                 DepthwiseConvBlock(out_channels, out_channels),
@@ -243,15 +233,15 @@ class IOMSG(EncoderDecoder):
         self.oct_encoder=OCTEncoder()
         self.class_head=ClassHead()
         self.CMFA=CMFA(channels=256)
-        self.CMFA= ConvModule(
-            self.decode_head.in_channels[0] * 2,
-            self.decode_head.in_channels[0],
-            1,
-            padding=0,
-            conv_cfg=None,
-            norm_cfg=None,
-            act_cfg=None
-        )
+        # self.CMFA= ConvModule(
+        #     self.decode_head.in_channels[0] * 2,
+        #     self.decode_head.in_channels[0],
+        #     1,
+        #     padding=0,
+        #     conv_cfg=None,
+        #     norm_cfg=None,
+        #     act_cfg=None
+        # )
         
 
     def right_pad_dims_to(self, x, t):
@@ -314,8 +304,8 @@ class IOMSG(EncoderDecoder):
         H,W=feature_fundus.shape[2:]
         oct=F.interpolate(oct, size=(H,W), mode='bilinear', align_corners=False)
         feat_oct=self.oct_encoder(oct)# in [b,128,256,256] out# bs, 256, h/4, w/4
-        #feature=self.CMFA(feature_fundus, feat_oct)
-        feature=self.CMFA(torch.cat([feature_fundus,feature], dim=1))
+        feature=self.CMFA(feature_fundus, feat_oct)
+        #feature=self.CMFA(torch.cat([feature_fundus,feature], dim=1))
         """classification"""
         class_logits=self.class_head(feature) #[bs,3]
         pred_label =torch.argmax(class_logits, dim=1) # [bs,1]

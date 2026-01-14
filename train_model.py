@@ -19,7 +19,7 @@ from model.datasets import build_dataset
 from model.models import build_segmentor
 from model.utils import (collect_env, get_device, get_root_logger,setup_multi_processes,PrintModelInfo,count_params)
 PRETRAIN='./exps/GAMMA_rgb_oct_cls_DSC_CMFA/best.pth'
-SAVEPATH='./exps/GAMMA_rgb_oct_DDM'
+SAVEPATH='./exps/GAMMA_rgb_oct_cls_DSC_CMFA_'
 
 os.environ['MASTER_ADDR'] = '127.0.0.1'
 os.environ['MASTER_PORT'] = '29500'
