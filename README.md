@@ -2,7 +2,11 @@
 This is official Pytorch implementation of "[Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis]()"
  - 
 ```
-@article{
+@inproceedings{Wang2026JointSA,
+  title={Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis},
+  author={Zhiwei Wang and Yuxing Li and Meilu Zhu and Defeng He and Edmund Y. Lam},
+  year={2026},
+  url={https://api.semanticscholar.org/CorpusID:286572762}
 }
 ```
 ## Framework
