@@ -1,12 +1,12 @@
 # IMO
-This is official Pytorch implementation of "[Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis]()"
+This is official Pytorch implementation of "[Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis](https://arxiv.org/abs/2603.14188)"
  - 
 ```
 @inproceedings{Wang2026JointSA,
-  title={Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis},
-  author={Zhiwei Wang and Yuxing Li and Meilu Zhu and Defeng He and Edmund Y. Lam},
-  year={2026},
-  url={https://api.semanticscholar.org/CorpusID:286572762}
+  author    = {Zhiwei Wang and Yuxing Li and Meilu Zhu and Defeng He and Edmund Y. Lam},
+  title     = {Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis},
+  booktitle = {2026 IEEE 23nd International Symposium on Biomedical Imaging (ISBI)},
+  year      = {2026}
 }
 ```
 ## Framework
@@ -79,10 +79,10 @@ python train_model.py
 ## If this work is helpful to you, please cite it as：
 ```
 @inproceedings{Wang2026JointSA,
-  title={Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis},
-  author={Zhiwei Wang and Yuxing Li and Meilu Zhu and Defeng He and Edmund Y. Lam},
-  year={2026},
-  url={https://api.semanticscholar.org/CorpusID:286572762}
+  author    = {Zhiwei Wang and Yuxing Li and Meilu Zhu and Defeng He and Edmund Y. Lam},
+  title     = {Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis},
+  booktitle = {2026 IEEE 23nd International Symposium on Biomedical Imaging (ISBI)},
+  year      = {2026}
 }
 ```
 ## Acknowledgements
