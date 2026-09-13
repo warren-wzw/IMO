@@ -1,14 +1,6 @@
 # IMO
 This is official Pytorch implementation of "[Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis](https://arxiv.org/abs/2603.14188)"
- - 
-```
-@inproceedings{Wang2026JointSA,
-  author    = {Zhiwei Wang and Yuxing Li and Meilu Zhu and Defeng He and Edmund Y. Lam},
-  title     = {Joint Segmentation and Grading with Iterative Optimization for Multimodal Glaucoma Diagnosis},
-  booktitle = {2026 IEEE 23nd International Symposium on Biomedical Imaging (ISBI)},
-  year      = {2026}
-}
-```
+
 ## Framework
 ![image](./assets/ModelArch.png)
 
@@ -24,7 +16,7 @@ This is official Pytorch implementation of "[Joint Segmentation and Grading with
 
 ## Experiments 
 ### Dataset & Checkpoints & Results
-The checkpoints and results can be in [IMO](). Download MSRS dataset from [GAMMA]().
+The checkpoints and results can be in [IMO](). Download dataset from [GAMMA]().
 If you need to evaluate other datasets, please organize them as follows:
 ```
 ├── /dataset
